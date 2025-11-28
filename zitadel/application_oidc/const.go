@@ -23,4 +23,5 @@ const (
 	ClientIDVar                 = "client_id"
 	ClientSecretVar             = "client_secret"
 	skipNativeAppSuccessPageVar = "skip_native_app_success_page"
+	loginUIBaseURLVar           = "login_ui_baseurl"
 )

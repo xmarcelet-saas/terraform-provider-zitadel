@@ -79,6 +79,7 @@ func update(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Dia
 		clockSkewVar,
 		additionalOriginsVar,
 		skipNativeAppSuccessPageVar,
+		loginUIBaseURLVar,
 	) {
 		respTypes := make([]app.OIDCResponseType, 0)
 		for _, respType := range d.Get(responseTypesVar).([]interface{}) {
@@ -91,6 +92,19 @@ func update(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Dia
 		dur, err := time.ParseDuration(d.Get(clockSkewVar).(string))
 		if err != nil {
 			return diag.FromErr(err)
+		}
+
+		loginVersion := app.LoginVersion{
+			Version: &app.LoginVersion_LoginV1{},
+		}
+		if url := d.Get(loginUIBaseURLVar).(string); url != "" {
+			loginVersion = app.LoginVersion{
+				Version: &app.LoginVersion_LoginV2{
+					LoginV2: &app.LoginV2{
+						BaseUri: &url,
+					},
+				},
+			}
 		}
 
 		_, err = client.UpdateOIDCAppConfig(helper.CtxWithOrgID(ctx, d), &management.UpdateOIDCAppConfigRequest{
@@ -110,6 +124,7 @@ func update(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Dia
 			AdditionalOrigins:        interfaceToStringSlice(d.Get(additionalOriginsVar)),
 			ClockSkew:                durationpb.New(dur),
 			SkipNativeAppSuccessPage: d.Get(skipNativeAppSuccessPageVar).(bool),
+			LoginVersion:             &loginVersion,
 		})
 		if err != nil {
 			return diag.Errorf("failed to update applicationOIDC: %v", err)
@@ -145,6 +160,19 @@ func create(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Dia
 		return diag.FromErr(err)
 	}
 
+	loginVersion := app.LoginVersion{
+		Version: &app.LoginVersion_LoginV1{},
+	}
+	if url := d.Get(loginUIBaseURLVar).(string); url != "" {
+		loginVersion = app.LoginVersion{
+			Version: &app.LoginVersion_LoginV2{
+				LoginV2: &app.LoginV2{
+					BaseUri: &url,
+				},
+			},
+		}
+	}
+
 	resp, err := client.AddOIDCApp(helper.CtxWithOrgID(ctx, d), &management.AddOIDCAppRequest{
 		ProjectId:                d.Get(ProjectIDVar).(string),
 		Name:                     d.Get(NameVar).(string),
@@ -163,6 +191,7 @@ func create(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Dia
 		AdditionalOrigins:        interfaceToStringSlice(d.Get(additionalOriginsVar)),
 		Version:                  app.OIDCVersion(app.OIDCVersion_value[d.Get(versionVar).(string)]),
 		SkipNativeAppSuccessPage: d.Get(skipNativeAppSuccessPageVar).(bool),
+		LoginVersion:             &loginVersion,
 	})
 
 	set := map[string]interface{}{
@@ -243,6 +272,10 @@ func read(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagn
 		if err := d.Set(k, v); err != nil {
 			return diag.Errorf("failed to set %s of applicationOIDC: %v", k, err)
 		}
+	}
+
+	if (oidc.GetLoginVersion() != nil && oidc.GetLoginVersion().GetLoginV2() != nil && oidc.GetLoginVersion().GetLoginV2().BaseUri != nil) {
+		d.Set(loginUIBaseURLVar, oidc.GetLoginVersion().GetLoginV2().BaseUri)
 	}
 	d.SetId(oidcApp.GetId())
 	return nil

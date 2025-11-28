@@ -150,6 +150,11 @@ func GetResource() *schema.Resource {
 				Optional:    true,
 				Description: "Skip the successful login page on native apps and directly redirect the user to the callback.",
 			},
+			loginUIBaseURLVar: {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Custom base URL for the new Login UI.",
+			},
 		},
 		DeleteContext: delete,
 		CreateContext: create,
